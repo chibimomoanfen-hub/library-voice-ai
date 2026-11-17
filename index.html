@@ -1,328 +1,181 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Spaces Capabilities Demo</title>
-<style>
-  :root {
-    --bg: #0b0d17;
-    --bg-soft: #141826;
-    --card: #171b2c;
-    --card-2: #1d2236;
-    --border: #2a3050;
-    --text: #e7e9f3;
-    --muted: #9aa0bd;
-    --accent: #7c5cff;
-    --accent-2: #ff5ca8;
-    --green: #3ddc97;
-    --red: #ff6b6b;
-    --shadow: 0 10px 40px rgba(0,0,0,.35);
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
-                radial-gradient(900px 500px at 0% 0%, rgba(255,92,168,.12), transparent 55%),
-                var(--bg);
-    color: var(--text);
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: 900px; margin: 0 auto; padding: 40px 20px 80px; }
-  header { text-align: center; margin-bottom: 36px; }
-  .badge {
-    display: inline-block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
-    color: var(--muted); border: 1px solid var(--border); border-radius: 999px;
-    padding: 5px 12px; margin-bottom: 16px; background: var(--bg-soft);
-  }
-  h1 { font-size: clamp(28px, 5vw, 44px); margin: 8px 0 10px; line-height: 1.1; }
-  h1 .grad {
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .sub { color: var(--muted); font-size: 17px; max-width: 620px; margin: 0 auto; }
-  .card {
-    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-    padding: 24px; box-shadow: var(--shadow); margin-bottom: 24px;
-  }
-  .card h2 { margin: 0 0 4px; font-size: 20px; }
-  .card .hint { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
-  .demo-live {
-    border: 1px solid rgba(124,92,255,.4);
-    background: linear-gradient(180deg, rgba(124,92,255,.08), rgba(255,92,168,.04));
-  }
-  textarea {
-    width: 100%; min-height: 90px; resize: vertical; border-radius: 12px;
-    border: 1px solid var(--border); background: var(--bg-soft); color: var(--text);
-    padding: 14px; font-size: 15px; font-family: inherit; outline: none;
-  }
-  textarea:focus { border-color: var(--accent); }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
-  button {
-    border: none; cursor: pointer; border-radius: 10px; padding: 11px 18px;
-    font-size: 15px; font-weight: 600; color: white;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    transition: transform .08s ease, opacity .2s ease;
-  }
-  button:hover { transform: translateY(-1px); }
-  button:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-  .chip {
-    background: var(--card-2); border: 1px solid var(--border); color: var(--muted);
-    border-radius: 999px; padding: 7px 13px; font-size: 13px; cursor: pointer;
-  }
-  .chip:hover { color: var(--text); border-color: var(--accent); }
-  .status { font-size: 14px; color: var(--muted); margin-top: 14px; min-height: 20px; }
-  .bar { height: 6px; border-radius: 4px; background: var(--bg-soft); overflow: hidden; margin-top: 10px; display: none; }
-  .bar > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s ease; }
-  .result { margin-top: 18px; display: none; }
-  .verdict { display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 700; }
-  .dot { width: 14px; height: 14px; border-radius: 50%; }
-  .meter { margin-top: 12px; }
-  .meter .track { height: 10px; border-radius: 6px; background: var(--bg-soft); overflow: hidden; }
-  .meter .fill { height: 100%; width: 0%; transition: width .5s ease; }
-  .meter .lbl { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
-  .mini {
-    background: var(--card-2); border: 1px solid var(--border); border-radius: 14px; padding: 18px;
-  }
-  .mini .emoji { font-size: 24px; }
-  .mini h3 { margin: 8px 0 6px; font-size: 16px; }
-  .mini p { margin: 0; color: var(--muted); font-size: 14px; }
-  .mini .tag { display:inline-block; margin-top:10px; font-size:12px; color: var(--accent); border:1px solid var(--border); border-radius:999px; padding:3px 9px; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
-  td .y { color: var(--green); } td .n { color: var(--red); }
-  code {
-    background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px;
-    padding: 1px 6px; font-size: 13px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  }
-  pre {
-    background: var(--bg-soft); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.5;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace; color: #cdd3f0;
-  }
-  a { color: var(--accent); }
-  footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 10px; }
-  .note { font-size: 13px; color: var(--muted); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Voice｜圖書館 AI 讀者心聲分析室</title>
+    <!-- 引入 Transformers.js 用於瀏覽器端本地模型推論 -->
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
+        
+        // 停用本地模型快取檢查警告
+        env.allowLocalModels = false;
+
+        let classifier = null;
+
+        async function loadModel() {
+            const statusEl = document.getElementById('status');
+            const loadBtn = document.getElementById('load-btn');
+            
+            try {
+                statusEl.textContent = '首次使用需下載模型，請稍候...';
+                loadBtn.disabled = true;
+
+                // 使用原始網站成功驗證之模型 ID
+                classifier = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+                
+                statusEl.textContent = '模型載入完成！請在下方輸入英文讀者意見或直接點選測試範例。';
+                document.getElementById('predict-btn').disabled = false;
+            } catch (err) {
+                statusEl.textContent = '模型載入失敗：' + err.message;
+                loadBtn.disabled = false;
+                console.error(err);
+            }
+        }
+
+        async function predictSentiment() {
+            if (!classifier) return;
+
+            const textInput = document.getElementById('text-input').value.trim();
+            const resultEl = document.getElementById('result');
+
+            if (!textInput) {
+                resultEl.innerHTML = '<span style="color: red;">請先輸入或選擇英文意見文字！</span>';
+                return;
+            }
+
+            resultEl.textContent = '正在分析讀者情緒傾向...';
+
+            try {
+                const results = await classifier(textInput);
+                const prediction = results[0];
+                
+                // 轉換標籤為清晰語意
+                const labelMap = {
+                    'POSITIVE': '正面回饋 (Positive)',
+                    'NEGATIVE': '負面批評 (Negative)'
+                };
+                
+                const labelText = labelMap[prediction.label] || prediction.label;
+                const confidence = (prediction.score * 100).toFixed(2);
+
+                resultEl.innerHTML = `
+                    <div style="margin-top: 10px; padding: 12px; background: #f4f6f8; border-radius: 6px;">
+                        <p><strong>分析結果：</strong> <span style="color: #2b6cb0; font-size: 1.1em;">${labelText}</span></p>
+                        <p><strong>信心分數：</strong> ${confidence}%</p>
+                    </div>
+                `;
+            } catch (err) {
+                resultEl.textContent = '推論過程發生錯誤：' + err.message;
+                console.error(err);
+            }
+        }
+
+        // 綁定全域函式供 HTML 按鈕呼叫
+        window.loadModel = loadModel;
+        window.predictSentiment = predictSentiment;
+        window.useExample = function(text) {
+            document.getElementById('text-input').value = text;
+        }
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background-color: #f9f9f9;
+        }
+        header, section {
+            background: #fff;
+            padding: 24px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        h1 { color: #2c3e50; font-size: 1.8em; margin-top: 0; }
+        h2 { color: #34495e; font-size: 1.3em; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        textarea {
+            width: 100%;
+            height: 90px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            resize: vertical;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .example-btn {
+            background-color: #7f8c8d;
+            font-size: 0.9em;
+            padding: 6px 12px;
+        }
+        .example-btn:hover { background-color: #626567; }
+        #status {
+            font-style: italic;
+            color: #e67e22;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        footer {
+            text-align: center;
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 30px;
+        }
+    </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header>
-    <span class="badge">Static Space · runs in your browser</span>
-    <h1>What can a <span class="grad">Hugging Face Space</span> do?</h1>
-    <p class="sub">A hands-on sandbox. This page is a Static Space — yet it runs a real
-    machine-learning model live, right here in your browser. Scroll down to try it.</p>
-  </header>
+    <header>
+        <h1>Library Voice｜圖書館 AI 讀者心聲分析室</h1>
+        <p>本工具為大學圖書館讀者意見分析之 AI 教學展示應用。透過瀏覽器端執行機器學習模型，示範如何自動將圖書館意見箱或問卷中的讀者心聲進行情感分類，支援圖書館參考諮詢與讀者服務品質優化。</p>
+        <p style="font-size: 0.9em; color: #c0392b; background: #fadbd8; padding: 8px; border-radius: 4px;">
+            <strong>⚠️ 使用限制提醒：</strong> 本展示使用之基礎 DistilBERT 模型<strong>僅支援英文（Positive / Negative 雙向情感分類）</strong>。輸入中文或要求中立情感分析將無法獲得準確結果。
+        </p>
+    </header>
 
-  <!-- LIVE ML DEMO -->
-  <section class="card demo-live">
-    <h2>🤖 Live demo — sentiment analysis, 100% in your browser</h2>
-    <p class="hint">No server. The DistilBERT model (~67&nbsp;MB) is streamed from the HF Hub CDN
-    and runs via <a href="https://huggingface.co/docs/transformers.js" target="_blank" rel="noopener">Transformers.js</a>
-    (WebGPU, falling back to WASM). First run downloads the model; after that it's cached.</p>
+    <section>
+        <h2>第一步：載入 AI 模型</h2>
+        <p>點擊下方按鈕以在瀏覽器中載入模型（不需伺服器 GPU 或付費 API）。</p>
+        <button id="load-btn" onclick="loadModel()">載入 DistilBERT 模型</button>
+        <div id="status">模型尚未載入</div>
+    </section>
 
-    <textarea id="input" placeholder="Type a sentence…">I love how simple Hugging Face Spaces make it to share ML demos.</textarea>
+    <section>
+        <h2>第二步：輸入或選擇圖書館意見範例</h2>
+        <p>請點選下方測試範例，或自行輸入英文讀者意見：</p>
+        <div style="margin-bottom: 12px;">
+            <button class="example-btn" onclick="useExample('The reference librarians were extremely helpful and guiding me through the database search efficiently.')">載入正面範例（參考諮詢肯定）</button>
+            <button class="example-btn" onclick="useExample('The study carrels on the 3rd floor are too noisy and the air conditioning is freezing cold.')">載入負面範例（環境與設備抱怨）</button>
+        </div>
+        
+        <textarea id="text-input" placeholder="請在此輸入英文意見，例如：The library opening hours during exam week are wonderful."></textarea>
+        <br>
+        <button id="predict-btn" onclick="predictSentiment()" disabled>開始 AI 情感分析</button>
 
-    <div class="row">
-      <button id="run" disabled>Analyze</button>
-      <span class="chip" data-ex="I absolutely love this, best thing ever.">😍 positive</span>
-      <span class="chip" data-ex="This is the worst experience I've had in years.">😠 negative</span>
-      <span class="chip" data-ex="The package arrived on Tuesday.">😐 neutral-ish</span>
-    </div>
+        <h3 style="margin-top: 20px;">分析結果輸出：</h3>
+        <div id="result">尚未進行分析</div>
+    </section>
 
-    <div class="bar" id="bar"><i></i></div>
-    <div class="status" id="status">Loading model…</div>
+    <footer>
+        <p>Original Space Author & MIT License (建議同步保留完整 LICENSE 檔案於 Space 專案根目錄中)</p>
+    </footer>
 
-    <div class="result" id="result">
-      <div class="verdict"><span class="dot" id="dot"></span><span id="label"></span></div>
-      <div class="meter">
-        <div class="lbl"><span>confidence</span><span id="score"></span></div>
-        <div class="track"><div class="fill" id="fill"></div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- WHAT IS A SPACE -->
-  <section class="card">
-    <h2>🧬 What actually is a Space?</h2>
-    <p class="hint">Every Space is just a <strong>git repo</strong>. A <code>README.md</code>
-    frontmatter block configures the runtime — the SDK, the hardware, the title. That's it.</p>
-    <pre>---
-title: Spaces Capabilities Demo
-emoji: 🧪
-sdk: static          # gradio | docker | static
-pinned: false
----</pre>
-    <p class="note">This very Space uses exactly that. Change <code>sdk:</code> and you change
-    what kind of app HF builds and serves for you.</p>
-  </section>
-
-  <!-- THREE SDKS -->
-  <section class="card">
-    <h2>🛠️ The three ways to build a Space</h2>
-    <p class="hint">Pick the SDK that fits the app.</p>
-    <div class="grid">
-      <div class="mini">
-        <div class="emoji">🐍</div>
-        <h3>Gradio</h3>
-        <p>Python. The most common Space. A few lines of <code>gr.Interface(...)</code> gives you
-        a UI + an auto-generated REST/MCP API. Supports ZeroGPU.</p>
-        <span class="tag">needs compute</span>
-      </div>
-      <div class="mini">
-        <div class="emoji">📦</div>
-        <h3>Docker</h3>
-        <p>Any container, any stack. Streamlit, FastAPI, Node, Rust… full control via a
-        <code>Dockerfile</code>. For when you outgrow Gradio.</p>
-        <span class="tag">needs compute</span>
-      </div>
-      <div class="mini">
-        <div class="emoji">⚡</div>
-        <h3>Static</h3>
-        <p>Plain HTML/JS, or a built React/Vue/Svelte app. In-browser ML with WebGPU/WASM.
-        <strong>Free for everyone</strong> — you're looking at one now.</p>
-        <span class="tag">free · no hardware</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- HARDWARE -->
-  <section class="card">
-    <h2>⚙️ Hardware tiers</h2>
-    <p class="hint">Static needs none. Gradio &amp; Docker run on compute and generally need a paid
-    plan — with one big exception (ZeroGPU) for free accounts.</p>
-    <div style="overflow-x:auto">
-    <table>
-      <thead><tr><th>Tier</th><th>What it is</th><th>Free account?</th></tr></thead>
-      <tbody>
-        <tr><td><strong>Static</strong></td><td>No server; browser does the work</td><td class="y">✓ unlimited</td></tr>
-        <tr><td><strong>ZeroGPU</strong></td><td>On-demand A10G-class GPU, per request</td><td class="y">✓ up to 2*</td></tr>
-        <tr><td><strong>cpu-basic</strong></td><td>2 vCPU / 16&nbsp;GB, always-on</td><td class="n">✗ paid plan</td></tr>
-        <tr><td><strong>Dedicated GPU</strong></td><td>T4 → H200, billed hourly</td><td class="n">✗ paid plan</td></tr>
-      </tbody>
-    </table>
-    </div>
-    <p class="note">* Free personal accounts in good standing (verified email, &gt; 30 days old) can
-    host up to 2 ZeroGPU Gradio Spaces. Newer accounts can request a community grant.</p>
-  </section>
-
-  <!-- CAPABILITIES -->
-  <section class="card">
-    <h2>✨ Things Spaces can do</h2>
-    <div class="grid">
-      <div class="mini"><h3>🔌 Auto API + MCP</h3><p>A Gradio Space is also a REST API and an
-        MCP server — every function becomes a callable tool.</p></div>
-      <div class="mini"><h3>🔐 Secrets &amp; env</h3><p>Inject API keys as hidden secrets, or public
-        config as env vars, at creation or later.</p></div>
-      <div class="mini"><h3>💾 Buckets</h3><p>Spaces are stateless, but mount a bucket at
-        <code>/data</code> for durable storage.</p></div>
-      <div class="mini"><h3>🧩 Embed anywhere</h3><p>Every Space embeds as an iframe, and Gradio
-        Spaces expose a JS/Python client.</p></div>
-      <div class="mini"><h3>🌐 Inference Providers</h3><p>Proxy to Cerebras, Together, Fireworks…
-        to run huge models with zero local VRAM.</p></div>
-      <div class="mini"><h3>👥 Community</h3><p>Likes, discussions, duplication — anyone can
-        fork your Space with one click.</p></div>
-    </div>
-  </section>
-
-  <footer>
-    <p>Built &amp; deployed from the terminal with the <code>hf</code> CLI · Static Space ·
-       model: <code>Xenova/distilbert-base-uncased-finetuned-sst-2-english</code></p>
-  </footer>
-
-</div>
-
-<script type="module">
-  import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
-
-  // Allow remote model download from the HF Hub (default), disable noisy local checks.
-  env.allowLocalModels = false;
-
-  const inputEl  = document.getElementById('input');
-  const runEl    = document.getElementById('run');
-  const statusEl = document.getElementById('status');
-  const barEl    = document.getElementById('bar');
-  const barFill  = barEl.querySelector('i');
-  const resultEl = document.getElementById('result');
-  const dotEl    = document.getElementById('dot');
-  const labelEl  = document.getElementById('label');
-  const scoreEl  = document.getElementById('score');
-  const fillEl   = document.getElementById('fill');
-
-  let classifier = null;
-
-  // Example chips
-  document.querySelectorAll('.chip[data-ex]').forEach(c => {
-    c.addEventListener('click', () => { inputEl.value = c.dataset.ex; if (classifier) run(); });
-  });
-
-  async function init() {
-    try {
-      barEl.style.display = 'block';
-      classifier = await pipeline(
-        'sentiment-analysis',
-        'Xenova/distilbert-base-uncased-finetuned-sst-2-english',
-        {
-          progress_callback: (p) => {
-            if (p.status === 'progress' && p.total) {
-              const pct = Math.round((p.loaded / p.total) * 100);
-              barFill.style.width = pct + '%';
-              statusEl.textContent = `Downloading ${p.file || 'model'}… ${pct}%`;
-            } else if (p.status === 'ready') {
-              statusEl.textContent = 'Model ready.';
-            }
-          }
-        }
-      );
-      barEl.style.display = 'none';
-      statusEl.textContent = '✅ Model loaded and cached. Ready to analyze.';
-      runEl.disabled = false;
-      run(); // run once on the default text
-    } catch (err) {
-      barEl.style.display = 'none';
-      statusEl.innerHTML = '⚠️ Could not load the model: ' + (err?.message || err) +
-        '<br>Try reloading — the HF Hub CDN may have been momentarily unreachable.';
-      console.error(err);
-    }
-  }
-
-  async function run() {
-    const text = inputEl.value.trim();
-    if (!text || !classifier) return;
-    runEl.disabled = true;
-    statusEl.textContent = 'Analyzing…';
-    try {
-      const out = await classifier(text);
-      const { label, score } = out[0];
-      const positive = label.toUpperCase() === 'POSITIVE';
-      const pct = (score * 100).toFixed(1);
-
-      dotEl.style.background = positive ? 'var(--green)' : 'var(--red)';
-      labelEl.textContent = positive ? 'Positive 😊' : 'Negative 😞';
-      scoreEl.textContent = pct + '%';
-      fillEl.style.width = pct + '%';
-      fillEl.style.background = positive ? 'var(--green)' : 'var(--red)';
-      resultEl.style.display = 'block';
-      statusEl.textContent = '✅ Done — inference ran entirely on your device.';
-    } catch (err) {
-      statusEl.textContent = '⚠️ Inference failed: ' + (err?.message || err);
-      console.error(err);
-    } finally {
-      runEl.disabled = false;
-    }
-  }
-
-  runEl.addEventListener('click', run);
-  inputEl.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') run();
-  });
-
-  init();
-</script>
 </body>
 </html>
