@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Voice｜圖書館 AI 讀者心聲分析室</title>
+
+    <!-- 引入 Transformers.js 用於瀏覽器端本地模型推論 -->
+    <script type="module">
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
+
+        // 停用本地模型快取檢查警告
+        env.allowLocalModels = false;
+
+        let classifier = null;
+
+        function setStatus(message, type = 'idle') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status status--${type}`;
+        }
+
+        function showPlaceholder(title, description, type = 'idle') {
+            const placeholder = document.getElementById('result-placeholder');
+            placeholder.hidden = false;
+            placeholder.className = `result-placeholder result-placeholder--${type}`;
+            document.getElementById('result-placeholder-title').textContent = title;
+            document.getElementById('result-placeholder-desc').textContent = description;
+            document.getElementById('result-loading').hidden = true;
+            document.getElementById('result-card').hidden = true;
+        }
+
+        function showLoading() {
+            document.getElementById('result-placeholder').hidden = true;
+            document.getElementById('result-loading').hidden = false;
+            document.getElementById('result-card').hidden = true;
+        }
+
+        async function loadModel() {
+            const statusEl = document.getElementById('status');
+            const loadBtn = document.getElementById('load-btn');
+
+            try {
+                setStatus('首次使用需下載模型，請稍候...', 'loading');
+                loadBtn.disabled = true;
+
+                // 使用原始網站成功驗證之模型 ID
+                classifier = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+
+                setStatus('模型載入完成！請在下方輸入英文讀者意見或直接點選測試範例。', 'success');
+                document.getElementById('predict-btn').disabled = false;
+            } catch (err) {
+                setStatus('模型載入失敗：' + err.message, 'error');
+                loadBtn.disabled = false;
+                console.error(err);
+            }
+        }
+
+        async function predictSentiment() {
+            if (!classifier) return;
+
+            const textInput = document.getElementById('text-input').value.trim();
+            const predictBtn = document.getElementById('predict-btn');
+
+            if (!textInput) {
+                showPlaceholder('請先輸入或選擇英文意見文字！', '請輸入英文讀者意見，或點選上方情境卡片。', 'warning');
+                return;
+            }
+
+            predictBtn.disabled = true;
+            showLoading();
+
+            try {
+                const results = await classifier(textInput);
+                const prediction = results[0];
+
+                // 轉換標籤為清晰語意
+                const labelMap = {
+                    'POSITIVE': '正面回饋 (Positive)',
+                    'NEGATIVE': '負面批評 (Negative)'
+                };
+
+                const labelText = labelMap[prediction.label] || prediction.label;
+                const confidence = (prediction.score * 100).toFixed(2);
+                const isPositive = prediction.label === 'POSITIVE';
+
+                document.getElementById('result-loading').hidden = true;
+
+                const card = document.getElementById('result-card');
+                card.hidden = false;
+                card.classList.toggle('is-positive', isPositive);
+                card.classList.toggle('is-negative', !isPositive);
+                document.getElementById('icon-positive').hidden = !isPositive;
+                document.getElementById('icon-negative').hidden = isPositive;
+
+                document.getElementById('result-label').textContent = labelText;
+                document.getElementById('result-score').textContent = confidence + '%';
+                document.getElementById('confidence-fill').style.width = confidence + '%';
+
+                const bar = document.getElementById('confidence-bar');
+                bar.setAttribute('aria-valuenow', confidence);
+                bar.setAttribute('aria-valuetext', confidence + '%');
+            } catch (err) {
+                showPlaceholder('推論過程發生錯誤：' + err.message, '請確認瀏覽器支援 WebAssembly，並再試一次。', 'error');
+                console.error(err);
+            } finally {
+                document.getElementById('result-loading').hidden = true;
+                predictBtn.disabled = false;
+            }
+        }
+
+        function clearResult() {
+            showPlaceholder('尚未進行分析', '載入模型並輸入英文意見後，結果會顯示在這裡。', 'idle');
+        }
+
+        // 綁定全域函式供 HTML 按鈕呼叫
+        window.loadModel = loadModel;
+        window.predictSentiment = predictSentiment;
+        window.clearResult = clearResult;
+        window.useExample = function(text, button) {
+            const input = document.getElementById('text-input');
+            input.value = text;
+
+            document.querySelectorAll('.example-card').forEach(card => {
+                card.classList.remove('is-selected');
+                card.setAttribute('aria-pressed', 'false');
+            });
+
+            if (button) {
+                button.classList.add('is-selected');
+                button.setAttribute('aria-pressed', 'true');
+            }
+
+            input.focus();
+            showPlaceholder('已載入範例，等待分析', '按下「開始 AI 情感分析」即可查看結果。', 'idle');
+        }
+    </script>
+
+    <style>
+        :root {
+            --cream: #F7F4EC;
+            --cream-deep: #EFEADF;
+            --surface: #FFFDF8;
+            --forest: #1E3D33;
+            --forest-deep: #17342B;
+            --forest-soft: #2E5849;
+            --sage: #8FB29A;
+            --sage-light: #DCE8DE;
+            --sage-pale: #EEF4EE;
+            --ink: #26362F;
+            --muted: #6B7C73;
+            --line: #DDE5DC;
+            --positive: #3F7A5E;
+            --negative: #B2644E;
+            --shadow: 0 16px 40px rgba(30, 61, 51, 0.08);
+            --shadow-soft: 0 8px 20px rgba(30, 61, 51, 0.06);
+            --radius-lg: 26px;
+            --radius-md: 18px;
+            --radius-sm: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--cream);
+            color: var(--ink);
+            font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button,
+        textarea {
+            font: inherit;
+        }
+
+        button:focus-visible,
+        textarea:focus-visible {
+            outline: 3px solid rgba(143, 178, 154, 0.55);
+            outline-offset: 3px;
+        }
+
+        .icon-sprite {
+            position: absolute;
+            width: 0;
+            height: 0;
+            overflow: hidden;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            flex: none;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .site-shell {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+            gap: 36px;
+            align-items: center;
+            padding: 46px 46px 42px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, #FDFBF6 0%, #F0F5EE 100%);
+            box-shadow: var(--shadow);
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: var(--sage-pale);
+            color: var(--forest-soft);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .eyebrow .icon {
+            width: 16px;
+            height: 16px;
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        h1 {
+            margin: 18px 0 14px;
+            color: var(--forest);
+            font-size: clamp(2rem, 4vw, 3.15rem);
+            line-height: 1.18;
+            letter-spacing: -0.02em;
+        }
+
+        h1 span {
+            display: block;
+            margin-top: 8px;
+            font-size: clamp(1.1rem, 2.2vw, 1.55rem);
+            font-weight: 600;
+            color: var(--forest-soft);
+            letter-spacing: 0.01em;
+        }
+
+        .hero-lead {
+            max-width: 560px;
+            margin-bottom: 18px;
+            color: var(--muted);
+            font-size: 1.02rem;
+        }
+
+        .limit-banner {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 18px;
+            padding: 13px 16px;
+            border: 1px solid #E7CFC5;
+            border-radius: var(--radius-sm);
+            background: #FCF3EF;
+            color: #7A4436;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .limit-banner .icon {
+            margin-top: 3px;
+            color: var(--negative);
+        }
+
+        .limit-banner strong {
+            color: #63382D;
+        }
+
+        .feature-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .feature-pills li {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 253, 248, 0.8);
+            color: var(--forest-soft);
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .feature-pills .icon {
+            width: 15px;
+            height: 15px;
+        }
+
+        .hero-art {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin: 0 auto;
+            filter: drop-shadow(0 18px 24px rgba(30, 61, 51, 0.1));
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
+            gap: 24px;
+            align-items: start;
+            margin-top: 24px;
+        }
+
+        .workspace-main,
+        .workspace-side {
+            display: grid;
+            gap: 24px;
+        }
+
+        .card {
+            padding: 26px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .card-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: var(--sage-pale);
+            color: var(--forest-soft);
+        }
+
+        .card-icon .icon {
+            width: 21px;
+            height: 21px;
+        }
+
+        .card h2 {
+            margin: 0;
+            color: var(--forest);
+            font-size: 1.18rem;
+            letter-spacing: 0.01em;
+        }
+
+        .card-subtitle {
+            margin: 0 0 18px 52px;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .card > p:not(.card-subtitle) {
+            color: var(--muted);
+            font-size: 0.94rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 44px;
+            padding: 10px 18px;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .btn .icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-primary {
+            background: var(--forest);
+            color: #FFFFFF;
+            box-shadow: 0 8px 18px rgba(30, 61, 51, 0.18);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--forest-deep);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            border-color: var(--line);
+            background: #FFFFFF;
+            color: var(--forest-soft);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--sage-pale);
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            background: #D9DFD8;
+            color: #7C8A82;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 14px;
+            padding: 11px 14px;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+
+        .status--idle {
+            background: var(--cream-deep);
+            color: var(--muted);
+        }
+
+        .status--loading {
+            background: #FFF6E4;
+            color: #8A6421;
+        }
+
+        .status--success {
+            background: var(--sage-pale);
+            color: var(--forest-soft);
+        }
+
+        .status--error {
+            background: #FBECE7;
+            color: #8C4634;
+        }
+
+        .section-label {
+            margin: 20px 0 10px;
+            color: var(--forest);
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        .example-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .example-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            padding: 15px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #FFFFFF;
+            color: var(--ink);
+            text-align: left;
+            cursor: pointer;
+            transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .example-card:hover {
+            border-color: var(--sage);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .example-card.is-selected {
+            border-color: var(--forest-soft);
+            background: var(--sage-pale);
+            box-shadow: inset 0 0 0 1px var(--forest-soft);
+        }
+
+        .example-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .example-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+
+        .example-card[data-sentiment="positive"] .example-tag {
+            background: var(--sage-pale);
+            color: var(--positive);
+        }
+
+        .example-card[data-sentiment="negative"] .example-tag {
+            background: #FBECE7;
+            color: var(--negative);
+        }
+
+        .example-tag .icon {
+            width: 13px;
+            height: 13px;
+        }
+
+        .example-check {
+            color: var(--forest-soft);
+            opacity: 0;
+            transition: opacity 0.16s ease;
+        }
+
+        .example-card.is-selected .example-check {
+            opacity: 1;
+        }
+
+        .example-title {
+            font-weight: 700;
+            font-size: 0.94rem;
+            color: var(--forest);
+        }
+
+        .example-text {
+            color: var(--muted);
+            font-size: 0.8rem;
+            line-height: 1.55;
+        }
+
+        .field-label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--forest);
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        textarea {
+            display: block;
+            width: 100%;
+            min-height: 130px;
+            padding: 14px 15px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #FFFFFF;
+            color: var(--ink);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        textarea::placeholder {
+            color: #9AA8A0;
+        }
+
+        textarea:focus {
+            border-color: var(--sage);
+            box-shadow: 0 0 0 4px rgba(143, 178, 154, 0.18);
+            outline: none;
+        }
+
+        .field-hint {
+            margin: 8px 0 16px;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .action-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-panel {
+            position: sticky;
+            top: 20px;
+        }
+
+        .result-heading {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .result-heading .card-header {
+            margin-bottom: 0;
+        }
+
+        .result-heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+
+        .result-placeholder,
+        .result-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 250px;
+            padding: 28px 20px;
+            border: 1px dashed var(--line);
+            border-radius: 16px;
+            background: var(--cream);
+            text-align: center;
+        }
+
+        .result-placeholder .icon,
+        .result-loading .icon {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 14px;
+            color: var(--sage);
+        }
+
+        .result-placeholder strong {
+            color: var(--forest);
+            font-size: 1rem;
+        }
+
+        .result-placeholder p {
+            max-width: 260px;
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 0.84rem;
+        }
+
+        .result-placeholder--warning {
+            border-color: #E7CFC5;
+            background: #FCF3EF;
+        }
+
+        .result-placeholder--warning .icon,
+        .result-placeholder--warning strong {
+            color: var(--negative);
+        }
+
+        .result-placeholder--error {
+            border-color: #E7CFC5;
+            background: #FBECE7;
+        }
+
+        .result-placeholder--error .icon,
+        .result-placeholder--error strong {
+            color: var(--negative);
+        }
+
+        .result-loading .icon {
+            animation: spin 1.4s linear infinite;
+        }
+
+        .result-loading strong {
+            color: var(--forest);
+        }
+
+        .result-loading p {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 0.84rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .result-card {
+            --result-accent: var(--positive);
+            padding: 20px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: linear-gradient(160deg, #FFFFFF 0%, var(--sage-pale) 100%);
+        }
+
+        .result-card.is-negative {
+            --result-accent: var(--negative);
+            background: linear-gradient(160deg, #FFFFFF 0%, #FBF1ED 100%);
+        }
+
+        .result-main {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .result-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border-radius: 14px;
+            background: var(--surface);
+            color: var(--result-accent);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .result-icon .icon {
+            width: 26px;
+            height: 26px;
+            stroke-width: 2.1;
+        }
+
+        .result-kicker {
+            margin: 0 0 2px;
+            color: var(--muted);
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+
+        #result-label {
+            margin: 0;
+            color: var(--result-accent);
+            font-size: 1.35rem;
+            line-height: 1.3;
+        }
+
+        .confidence-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            font-size: 0.86rem;
+            color: var(--muted);
+        }
+
+        .confidence-head strong {
+            color: var(--forest);
+            font-size: 1.28rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .progress-track {
+            height: 12px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #E4E9E2;
+        }
+
+        .progress-fill {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--result-accent);
+            transition: width 0.55s ease;
+        }
+
+        .result-footnote {
+            margin: 12px 0 0;
+            color: var(--muted);
+            font-size: 0.76rem;
+            line-height: 1.55;
+        }
+
+        .note-card {
+            background: #F2F6F0;
+        }
+
+        .note-list {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--ink);
+            font-size: 0.88rem;
+        }
+
+        .note-list li + li {
+            margin-top: 8px;
+        }
+
+        .model-id {
+            display: block;
+            margin-top: 16px;
+            padding: 11px 12px;
+            overflow-wrap: anywhere;
+            border-radius: 10px;
+            background: var(--forest-deep);
+            color: #E8F1E9;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 0.74rem;
+            line-height: 1.5;
+        }
+
+        .site-footer {
+            margin-top: 28px;
+            padding: 22px 12px 0;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        .site-footer p {
+            margin: 0;
+        }
+
+        @media (max-width: 900px) {
+            .hero {
+                grid-template-columns: 1fr;
+                padding: 32px 28px;
+            }
+
+            .hero-art {
+                max-width: 400px;
+            }
+
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+
+            .result-panel {
+                position: static;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .site-shell {
+                padding: 18px 14px 36px;
+            }
+
+            .hero {
+                gap: 24px;
+                padding: 26px 20px;
+                border-radius: 20px;
+            }
+
+            .card {
+                padding: 20px;
+                border-radius: 16px;
+            }
+
+            .card-subtitle {
+                margin-left: 0;
+            }
+
+            .example-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-row .btn {
+                width: 100%;
+            }
+
+            .result-heading {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <svg class="icon-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <symbol id="i-sparkle" viewBox="0 0 24 24">
+            <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />
+            <path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z" />
+        </symbol>
+        <symbol id="i-book" viewBox="0 0 24 24">
+            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v16H6.5A2.5 2.5 0 0 0 4 21.5V5.5Z" />
+            <path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H19" />
+            <path d="M8 7h7M8 11h5" />
+        </symbol>
+        <symbol id="i-chat" viewBox="0 0 24 24">
+            <path d="M20 15a3 3 0 0 1-3 3H9l-5 3V6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v9Z" />
+            <path d="M8 9h8M8 13h5" />
+        </symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24">
+            <path d="M4 20h16" />
+            <rect x="5" y="11" width="3.5" height="6" rx="1" />
+            <rect x="10.25" y="7" width="3.5" height="10" rx="1" />
+            <rect x="15.5" y="13" width="3.5" height="4" rx="1" />
+            <path d="m5 9 5-4 5 3 4-5" />
+        </symbol>
+        <symbol id="i-model" viewBox="0 0 24 24">
+            <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
+            <path d="m4 7.5 8 4.5 8-4.5M12 12v9" />
+        </symbol>
+        <symbol id="i-info" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5M12 8h.01" />
+        </symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24">
+            <path d="M10.3 4.3 2.9 17a2 2 0 0 0 1.7 3h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
+            <path d="M12 9v4M12 17h.01" />
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9" />
+            <path d="m8 12.5 2.6 2.5L16 9.5" />
+        </symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24">
+            <path d="M20 11a8 8 0 0 0-13.7-5.3L4 8" />
+            <path d="M4 4v4h4" />
+            <path d="M4 13a8 8 0 0 0 13.7 5.3L20 16" />
+            <path d="M20 20v-4h-4" />
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24">
+            <rect x="5" y="10" width="14" height="10" rx="2" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </symbol>
+        <symbol id="i-play" viewBox="0 0 24 24">
+            <path d="m8 5 11 7-11 7V5Z" />
+        </symbol>
+    </svg>
+
+    <div class="site-shell">
+        <header class="hero">
+            <div class="hero-copy">
+                <span class="eyebrow">
+                    <svg class="icon"><use href="#i-sparkle"></use></svg>
+                    大學圖書館・讀者意見洞察
+                </span>
+                <h1>
+                    Library Voice
+                    <span>圖書館 AI 讀者心聲分析室</span>
+                </h1>
+                <p class="hero-lead">
+                    以瀏覽器端 AI 協助館員快速辨識讀者回饋的情感傾向，讓每一則意見都能成為優化讀者服務的線索。
+                </p>
+                <div class="limit-banner" role="note">
+                    <svg class="icon"><use href="#i-alert"></use></svg>
+                    <div>
+                        <strong>⚠️ 使用限制提醒：</strong>
+                        本展示使用之基礎 DistilBERT 模型<strong>僅支援英文（Positive / Negative 雙向情感分類）</strong>。輸入中文或要求中立情感分析將無法獲得準確結果。
+                    </div>
+                </div>
+                <ul class="feature-pills">
+                    <li><svg class="icon"><use href="#i-model"></use></svg>瀏覽器端推論</li>
+                    <li><svg class="icon"><use href="#i-lock"></use></svg>不需付費金鑰</li>
+                    <li><svg class="icon"><use href="#i-chart"></use></svg>即時情感分類</li>
+                </ul>
+            </div>
+
+            <svg class="hero-art" viewBox="0 0 460 320" role="img" aria-label="書籍、對話框與分析圖表的插畫">
+                <rect x="20" y="20" width="420" height="280" rx="30" fill="#E9F1E8" />
+                <circle cx="374" cy="74" r="54" fill="#D6E6D8" opacity="0.75" />
+                <circle cx="78" cy="70" r="28" fill="#D6E6D8" opacity="0.6" />
+
+                <g transform="translate(56 150)">
+                    <rect x="0" y="104" width="168" height="20" rx="6" fill="#17342B" />
+                    <rect x="10" y="98" width="154" height="8" rx="4" fill="#F7F4EC" />
+                    <rect x="14" y="76" width="150" height="22" rx="6" fill="#8FB29A" />
+                    <rect x="24" y="70" width="136" height="8" rx="4" fill="#FFFDF8" />
+                    <rect x="6" y="48" width="142" height="22" rx="6" fill="#2E5849" />
+                    <rect x="16" y="42" width="128" height="8" rx="4" fill="#F7F4EC" />
+                    <path d="M28 114h118M42 86h96M32 58h94" stroke="#DCE8DE" stroke-width="2" stroke-linecap="round" opacity="0.7" />
+                </g>
+
+                <g transform="translate(224 52)">
+                    <path d="M40 90 30 112l38-22" fill="#FFFDF8" stroke="#8FB29A" stroke-width="2" stroke-linejoin="round" />
+                    <rect x="0" y="0" width="176" height="94" rx="18" fill="#FFFDF8" stroke="#8FB29A" stroke-width="2" />
+                    <rect x="22" y="24" width="98" height="8" rx="4" fill="#DCE8DE" />
+                    <rect x="22" y="44" width="128" height="8" rx="4" fill="#E8EEE7" />
+                    <rect x="22" y="64" width="76" height="8" rx="4" fill="#E8EEE7" />
+                    <circle cx="146" cy="28" r="6" fill="#4F7A64" />
+                    <circle cx="162" cy="28" r="6" fill="#8FB29A" />
+                </g>
+
+                <g transform="translate(226 178)">
+                    <rect x="0" y="0" width="172" height="108" rx="18" fill="#17342B" />
+                    <rect x="20" y="62" width="18" height="28" rx="5" fill="#8FB29A" />
+                    <rect x="50" y="46" width="18" height="44" rx="5" fill="#DCE8DE" />
+                    <rect x="80" y="54" width="18" height="36" rx="5" fill="#8FB29A" />
+                    <rect x="110" y="34" width="18" height="56" rx="5" fill="#DCE8DE" />
+                    <polyline points="20,50 50,34 80,42 110,22" fill="none" stroke="#F7F4EC" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                    <circle cx="20" cy="50" r="4" fill="#F7F4EC" />
+                    <circle cx="50" cy="34" r="4" fill="#F7F4EC" />
+                    <circle cx="80" cy="42" r="4" fill="#F7F4EC" />
+                    <circle cx="110" cy="22" r="4.5" fill="#F7F4EC" />
+                </g>
+
+                <g stroke="#4F7A64" stroke-width="4" fill="none">
+                    <circle cx="196" cy="150" r="20" />
+                    <path d="m211 165 18 18" stroke-linecap="round" />
+                </g>
+                <path d="M198 48v14M191 55h14M410 244v14M403 251h14" stroke="#4F7A64" stroke-width="2.5" stroke-linecap="round" opacity="0.55" />
+            </svg>
+        </header>
+
+        <main class="workspace">
+            <div class="workspace-main">
+                <section class="card" aria-labelledby="model-title">
+                    <div class="card-header">
+                        <span class="card-icon"><svg class="icon"><use href="#i-model"></use></svg></span>
+                        <h2 id="model-title">第一步・載入 AI 模型</h2>
+                    </div>
+                    <p class="card-subtitle">不需伺服器 GPU 或付費 API，模型會在瀏覽器中準備完成。</p>
+                    <p>點擊下方按鈕以在瀏覽器中載入模型。首次使用會下載模型檔案，請稍候片刻。</p>
+                    <button id="load-btn" class="btn btn-primary" type="button" onclick="loadModel()">
+                        <svg class="icon"><use href="#i-refresh"></use></svg>
+                        載入 DistilBERT 模型
+                    </button>
+                    <div id="status" class="status status--idle">模型尚未載入</div>
+                </section>
+
+                <section class="card" aria-labelledby="input-title">
+                    <div class="card-header">
+                        <span class="card-icon"><svg class="icon"><use href="#i-chat"></use></svg></span>
+                        <h2 id="input-title">第二步・輸入讀者意見</h2>
+                    </div>
+                    <p class="card-subtitle">點選情境卡片快速帶入英文範例，或直接輸入英文讀者意見。</p>
+
+                    <p class="section-label">測試情境範例</p>
+                    <div class="example-grid">
+                        <button
+                            type="button"
+                            class="example-card"
+                            data-sentiment="positive"
+                            aria-pressed="false"
+                            onclick="useExample('The reference librarians were extremely helpful and guiding me through the database search efficiently.', this)">
+                            <span class="example-top">
+                                <span class="example-tag">
+                                    <svg class="icon"><use href="#i-check"></use></svg>
+                                    正面情境
+                                </span>
+                                <svg class="icon example-check"><use href="#i-check"></use></svg>
+                            </span>
+                            <span class="example-title">參考諮詢肯定</span>
+                            <span class="example-text">The reference librarians were extremely helpful and guiding me through the database search efficiently.</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="example-card"
+                            data-sentiment="negative"
+                            aria-pressed="false"
+                            onclick="useExample('The study carrels on the 3rd floor are too noisy and the air conditioning is freezing cold.', this)">
+                            <span class="example-top">
+                                <span class="example-tag">
+                                    <svg class="icon"><use href="#i-alert"></use></svg>
+                                    負面情境
+                                </span>
+                                <svg class="icon example-check"><use href="#i-check"></use></svg>
+                            </span>
+                            <span class="example-title">環境與設備抱怨</span>
+                            <span class="example-text">The study carrels on the 3rd floor are too noisy and the air conditioning is freezing cold.</span>
+                        </button>
+                    </div>
+
+                    <p class="section-label">自訂讀者意見</p>
+                    <label class="field-label" for="text-input">讀者意見文字</label>
+                    <textarea id="text-input" placeholder="請在此輸入英文意見，例如：The library opening hours during exam week are wonderful."></textarea>
+                    <p class="field-hint">小提醒：請使用英文輸入；中文或中立語氣無法獲得準確結果。</p>
+
+                    <div class="action-row">
+                        <button id="predict-btn" class="btn btn-primary" type="button" onclick="predictSentiment()" disabled>
+                            <svg class="icon"><use href="#i-play"></use></svg>
+                            開始 AI 情感分析
+                        </button>
+                        <button class="btn btn-secondary" type="button" onclick="clearResult()">
+                            <svg class="icon"><use href="#i-refresh"></use></svg>
+                            清空結果
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="workspace-side">
+                <section class="card result-panel" aria-labelledby="result-title">
+                    <div class="result-heading">
+                        <div class="card-header">
+                            <span class="card-icon"><svg class="icon"><use href="#i-chart"></use></svg></span>
+                            <h2 id="result-title">分析結果</h2>
+                        </div>
+                        <p>情感分類與信心分數</p>
+                    </div>
+
+                    <div id="result" aria-live="polite">
+                        <div id="result-placeholder" class="result-placeholder">
+                            <svg class="icon"><use href="#i-chart"></use></svg>
+                            <strong id="result-placeholder-title">尚未進行分析</strong>
+                            <p id="result-placeholder-desc">載入模型並輸入英文意見後，結果會顯示在這裡。</p>
+                        </div>
+
+                        <div id="result-loading" class="result-loading" hidden>
+                            <svg class="icon"><use href="#i-refresh"></use></svg>
+                            <strong>正在分析讀者情緒傾向...</strong>
+                            <p>模型正在本機進行推論，請稍候。</p>
+                        </div>
+
+                        <article id="result-card" class="result-card" hidden>
+                            <div class="result-main">
+                                <span class="result-icon">
+                                    <svg id="icon-positive" class="icon"><use href="#i-check"></use></svg>
+                                    <svg id="icon-negative" class="icon" hidden><use href="#i-alert"></use></svg>
+                                </span>
+                                <div>
+                                    <p class="result-kicker">情感分類</p>
+                                    <h3 id="result-label">—</h3>
+                                </div>
+                            </div>
+                            <div class="confidence-head">
+                                <span>信心分數</span>
+                                <strong id="result-score">—</strong>
+                            </div>
+                            <div
+                                id="confidence-bar"
+                                class="progress-track"
+                                role="progressbar"
+                                aria-label="信心分數"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                aria-valuenow="0">
+                                <div id="confidence-fill" class="progress-fill"></div>
+                            </div>
+                            <p class="result-footnote">分數代表模型對此分類的信心，非服務滿意度的絕對值。</p>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="card note-card" aria-labelledby="note-title">
+                    <div class="card-header">
+                        <span class="card-icon"><svg class="icon"><use href="#i-info"></use></svg></span>
+                        <h2 id="note-title">使用提醒</h2>
+                    </div>
+                    <ul class="note-list">
+                        <li>僅支援英文（Positive / Negative 雙向情感分類）。</li>
+                        <li>輸入中文或要求中立情感分析，將無法獲得準確結果。</li>
+                        <li>分析結果僅供參考，建議搭配人工判讀。</li>
+                        <li>文字在瀏覽器本機處理，不需付費 API 或 API Key。</li>
+                    </ul>
+                    <code class="model-id">Xenova/distilbert-base-uncased-finetuned-sst-2-english</code>
+                </section>
+            </aside>
+        </main>
+
+        <footer class="site-footer">
+            <p>Original Space Author & MIT License (建議同步保留完整 LICENSE 檔案於 Space 專案根目錄中)</p>
+        </footer>
+    </div>
+</body>
+</html>
